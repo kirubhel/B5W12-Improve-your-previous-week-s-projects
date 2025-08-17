@@ -1,0 +1,22 @@
+# requirements.txt
+pandas
+matplotlib
+tqdm
+scikit-learn
+sentence-transformers
+faiss-cpu
+langchain
+notebook
+ipywidgets
+streamlit
+pytest
+pytest-cov
+shap
+plotly
+numpy
+transformers
+torch
+gradio
+pytest-mock
+black
+flake8

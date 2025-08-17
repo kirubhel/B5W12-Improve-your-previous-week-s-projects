@@ -1,0 +1,9 @@
+# .gitignore
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+vector_store/
+data/filtered_complaints.csv
+data/complaints.csv
+venv/
