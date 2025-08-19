@@ -1,0 +1,99 @@
+# docker-compose.yml for CrediTrust Complaint Analysis System
+# Complete production deployment with monitoring and persistence
+
+version: '3.8'
+
+services:
+  complaint-analysis:
+    build: .
+    container_name: creditrust-complaint-analysis
+    ports:
+      - "8501:8501"
+    environment:
+      - COMPLIANCE_MODE=true
+      - AUDIT_TRAIL_ENABLED=true
+      - DATA_RETENTION_DAYS=90
+      - MAX_RESPONSE_TIME_MS=3000
+      - MIN_CONFIDENCE_THRESHOLD=0.7
+    volumes:
+      - ./data:/app/data
+      - ./vector_store:/app/vector_store
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - complaint-network
+
+  # Optional: Add monitoring service
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: complaint-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - monitoring_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - complaint-network
+
+  # Optional: Add visualization service
+  grafana:
+    image: grafana/grafana:latest
+    container_name: complaint-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    networks:
+      - complaint-network
+    depends_on:
+      - monitoring
+
+volumes:
+  monitoring_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  complaint-network:
+    driver: bridge
+
+# Optional: Add backup service
+# backup:
+#   image: alpine:latest
+#   container_name: complaint-backup
+#   volumes:
+#     - ./data:/backup/data
+#     - ./vector_store:/backup/vector_store
+#     - ./reports:/backup/reports
+#     - backup_storage:/backup/storage
+#   command: |
+#     sh -c "
+#       tar -czf /backup/storage/backup-$$(date +%Y%m%d-%H%M%S).tar.gz \
+#         /backup/data /backup/vector_store /backup/reports
+#       echo 'Backup completed at $$(date)'
+#     "
+#   restart: "no"
+#   networks:
+#     - complaint-network 
